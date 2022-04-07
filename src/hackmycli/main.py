@@ -9,7 +9,7 @@ class HackMyCLI:
     HackMyVM command-line tool
 
     It is a tool for managing HackMyVM platform basics.
-    It includes some of this utilities:
+    It includes some of these utilities:
         - List all avaliable machine
         - Download machines 
         - Insert flags to machines
@@ -30,6 +30,7 @@ class HackMyCLI:
 
         self.__database = LoadPickleDB("config.json")
         self.config = self.__config(self.__database)
+        self.submit = self.__submit(self.__database)
 
     class __config:
         def __init__(self, database: LoadPickleDB):
@@ -41,7 +42,7 @@ class HackMyCLI:
 
             self.__database = database
 
-        def fresh(self, username:str, password:str, clean:bool=False):
+        def fresh(self, username: str, password: str, clean: bool = False):
             """
             Updates configuration username and password
 
@@ -61,10 +62,10 @@ class HackMyCLI:
 
             :param username: Username to be saved
             """
-            
-            self.add("username", username)            
 
-        def password(self, password:str):
+            self.add("username", username)
+
+        def password(self, password: str):
             """
             Updates configuration password
 
@@ -73,7 +74,7 @@ class HackMyCLI:
 
             self.add("password", password)
 
-        def add(self, key:str, value):
+        def add(self, key: str, value):
             """
             Inserts custom key and value into configuration file
 
@@ -91,13 +92,138 @@ class HackMyCLI:
             :param key: Keyword to be removed
             """
 
-            if self.__database.exists(key): 
+            if self.__database.exists(key):
                 self.__database.pop(key)
                 self.__database.save.as_json()
 
             else: raise Exception("Invalid keyword. It do not exists on configuration file")
 
-    def list(self, level:str="all"):
+    class __submit:
+        def __init__(self, database: LoadPickleDB):
+            """
+            Main submit command manager
+            """
+
+            self.__database = database
+
+        def __existLevel(self, level: str):
+            """
+            Checks if a level is valid or not
+            """
+
+            levels = [
+                "Easy",
+                "Medium",
+                "Hard"
+            ]
+
+            return True if level in levels else False
+
+        def __existCategory(self, category: str):
+            """
+            Checks if a category is valid or not
+            """
+
+            categories = [
+                "Stego",
+                "Programming",
+                "Crypto",
+                "Web",
+                "Reversing",
+                "OSINT",
+                "Forensic",
+                "Misc"
+            ]
+
+            return True if category in categories else False
+
+        def challenge(self, category: str, flag: str, description: str, solution: str, url: str = None):
+            """
+            Submits a new challenge to hackmyvm
+
+            Challenge categories:
+                - Stego
+	    		- Programming
+                - Crypto
+			    - Web
+		    	- Reversing
+                - OSINT
+                - Forensic
+                - Misc
+
+            :param category: Challenge category, it must be in the list above
+            :param flag: Challenge flag
+            :param description: Challenge level description
+            :param solution: Challenge solution description
+            :param url: Url where to download the challenge
+            """
+
+            # https://hackmyvm.eu/submit/registerchallenge.php
+            # https://hackmyvm.eu/submit/registersubmit.php
+
+            if not self.__existCategory(category): raise Exception("Invalid challenge category. It do not exist on categories list")
+
+            data = {
+                "chatype": category,
+                "challengeflag": flag,
+                "chalevel": description,
+                "chasolution": solution,
+                "challengeurl": url
+            }
+
+            # Make post petition with data
+
+            submited = data  # Petition
+
+            return submited
+
+        def machine(self, name: str, url: str, user_flag: str, root_flag: str, level: str, notes: str, writeup: str):
+            """
+            Submits a new machine to hackmyvm
+
+            Machine levels:
+                - Easy
+	    		- Medium
+                - Hard
+            
+            :param name: Machine name
+            :param url: Url where to download the challenge
+            :param user_flag: Machine user flag
+            :param root_flag: Machine root flag
+            :param level: Machine complexity
+            :param notes: Notes about the machine. Public for everyone
+            :param writeup: Summarized solution of the machine. Only avaliable for staff
+            """
+
+            if not self.__existLevel(level): raise Exception("Invalid machine level. It do not exist on levels list")
+
+            data = {
+                "vmname": name,
+                "url": url,
+                "flaguser": user_flag,
+                "flagroot": root_flag,
+                "level": level,
+                "notes": notes,
+                "writeup": writeup
+            }
+
+            # Make post petition with data
+
+            submited = data  # Petition
+
+            return submited
+
+        def status(self, name: str, challenge: bool = False):
+            """
+            Returns a machine or user challenge status
+
+            :param name: Keyword to get the status
+            :param challenge: Bool parameter to specify if you want to get a challenge status
+            """
+
+            pass
+
+    def list(self, level: str = "all"):
         """
         Lists all avaliable machines based on level
 
@@ -111,7 +237,7 @@ class HackMyCLI:
         """
 
         level_types = ["all", "easy", "medium", "hard"]
-        level  = level if level.lower() in level_types else "all"
+        level = level if level.lower() in level_types else "all"
 
         machines = []
 
@@ -119,7 +245,7 @@ class HackMyCLI:
 
         return machines
 
-    def checkflag(self, flag:str, machine:str, no_verify:bool=False):
+    def checkflag(self, flag: str, machine: str, no_verify: bool = False):
         """
         Inserts the flag into the machine if valid
 
@@ -135,15 +261,14 @@ class HackMyCLI:
 
         inserted: bool = False
 
-        if not no_verify:
-            if machine not in self.list():
-                raise Exception("Invalid machine. It do not exist on hackmyvm database")
+        if not no_verify and machine not in self.list():
+            raise Exception("Invalid machine. It do not exist on hackmyvm database")
 
         # Insert flag into machine
 
         return inserted
 
-    def download(self, machine:str, no_verify:bool=False):
+    def download(self, machine: str, no_verify: bool = False):
         """
         Downloads the machine from hackmyvm database
 
@@ -154,14 +279,25 @@ class HackMyCLI:
         """
 
         downloaded: bool = False
-        
+
         if not no_verify:
             if machine not in self.list():
                 raise Exception("Invalid machine. It do not exist on hackmyvm database")
 
         # Download the machine
-        
+
         return downloaded
 
-if __name__ == "__main__": fire.Fire(HackMyCLI)
+    def leaderboard(self, limit: int = 5):
+        """
+        Returns the firts users of leaderboard based on the limit
 
+        :param limit: Integer to specify how many users to get
+        """
+
+        leaderboard = []
+
+        return leaderboard[:limit]
+
+
+if __name__ == "__main__": fire.Fire(HackMyCLI)

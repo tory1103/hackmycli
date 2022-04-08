@@ -1,6 +1,9 @@
 #!/bin/python3
 
 import fire
+from requests import post
+from exceptions import *
+from prettytable.colortable import ColorTable, Themes
 from my_pickledb import LoadPickleDB
 
 
@@ -14,13 +17,16 @@ class HackMyCLI:
         - Download machines 
         - Insert flags to machines
         - Local configuration basics
+        - Submit challenges and machines
+        - Get submit status
 
-    Before using it, you must configure your username and password with config command
-    Try: python3 main.py config fresh <username> <password>
+    Before using it, you must configure your username, password and API key with config command
+    Try: python3 main.py config fresh <username> <password> <api_key>
+         python3 main.py config key <api_key>
 
     Author : Adrian Toral
-    Date   : 06-04-2022
-    Latest : v0-beta
+    Date   : 08-04-2022
+    Latest : v0.1-beta
     """
 
     def __init__(self):
@@ -28,7 +34,11 @@ class HackMyCLI:
         HackMyCLI main command manager
         """
 
+        # Variables
         self.__database = LoadPickleDB("config.json")
+        self.__api_url = "https://hackmyvm.eu/apio/"
+
+        # Groups of commands
         self.config = self.__config(self.__database)
         self.submit = self.__submit(self.__database)
 
@@ -42,12 +52,13 @@ class HackMyCLI:
 
             self.__database = database
 
-        def fresh(self, username: str, password: str, clean: bool = False):
+        def fresh(self, username: str, password: str, key: str, clean: bool = False):
             """
-            Updates configuration username and password
+            Updates configuration username, password and key
 
             :param username: Username to be saved
             :param password: Password to be saved
+            :param key: API key to be saved
             :param clean: Cleans configuration file before saving new data
             """
 
@@ -55,6 +66,7 @@ class HackMyCLI:
 
             self.username(username)
             self.password(password)
+            self.key(key)
 
         def username(self, username: str):
             """
@@ -73,6 +85,15 @@ class HackMyCLI:
             """
 
             self.add("password", password)
+
+        def key(self, key: str):
+            """
+            Updates configuration API key
+
+            :param key: API key to be saved
+            """
+
+            self.add("api_key", key)
 
         def add(self, key: str, value):
             """
@@ -112,10 +133,10 @@ class HackMyCLI:
             """
 
             levels = [
-                "Easy",
-                "Medium",
-                "Hard"
-            ]
+                    "Easy",
+                    "Medium",
+                    "Hard"
+                    ]
 
             return True if level in levels else False
 
@@ -125,15 +146,15 @@ class HackMyCLI:
             """
 
             categories = [
-                "Stego",
-                "Programming",
-                "Crypto",
-                "Web",
-                "Reversing",
-                "OSINT",
-                "Forensic",
-                "Misc"
-            ]
+                    "Stego",
+                    "Programming",
+                    "Crypto",
+                    "Web",
+                    "Reversing",
+                    "OSINT",
+                    "Forensic",
+                    "Misc"
+                    ]
 
             return True if category in categories else False
 
@@ -143,10 +164,10 @@ class HackMyCLI:
 
             Challenge categories:
                 - Stego
-	    		- Programming
+                - Programming
                 - Crypto
-			    - Web
-		    	- Reversing
+                - Web
+                - Reversing
                 - OSINT
                 - Forensic
                 - Misc
@@ -164,12 +185,12 @@ class HackMyCLI:
             if not self.__existCategory(category): raise Exception("Invalid challenge category. It do not exist on categories list")
 
             data = {
-                "chatype": category,
-                "challengeflag": flag,
-                "chalevel": description,
-                "chasolution": solution,
-                "challengeurl": url
-            }
+                    "chatype": category,
+                    "challengeflag": flag,
+                    "chalevel": description,
+                    "chasolution": solution,
+                    "challengeurl": url
+                    }
 
             # Make post petition with data
 
@@ -183,9 +204,9 @@ class HackMyCLI:
 
             Machine levels:
                 - Easy
-	    		- Medium
+                - Medium
                 - Hard
-            
+
             :param name: Machine name
             :param url: Url where to download the challenge
             :param user_flag: Machine user flag
@@ -198,14 +219,14 @@ class HackMyCLI:
             if not self.__existLevel(level): raise Exception("Invalid machine level. It do not exist on levels list")
 
             data = {
-                "vmname": name,
-                "url": url,
-                "flaguser": user_flag,
-                "flagroot": root_flag,
-                "level": level,
-                "notes": notes,
-                "writeup": writeup
-            }
+                    "vmname": name,
+                    "url": url,
+                    "flaguser": user_flag,
+                    "flagroot": root_flag,
+                    "level": level,
+                    "notes": notes,
+                    "writeup": writeup
+                    }
 
             # Make post petition with data
 
@@ -223,9 +244,52 @@ class HackMyCLI:
 
             pass
 
-    def list(self, level: str = "all"):
+    def __catchAPIKey(self): 
         """
-        Lists all avaliable machines based on level
+        Raises an exception if the API key is not set
+        """
+
+        if not self.__database.exists("api_key"): raise APIKeyConfig("Previous configuration needed. API Key must be set.\nTry: python3 main.py config fresh <username> <password> <api_key>\n     python3 main.py config key <api_key>")
+
+    def __catchInvalidMachine(self, machine: str):
+        """
+        Raises an exception if the machine is not on database
+        """
+
+        catched: bool = True
+
+        for data in self.__list():
+            if machine in data: catched = False
+
+        if catched: raise InvalidMachine("Machine do not exist on hackmyvm database. Check if it is spelled correctly")
+
+    def __api_post_data(self, data: dict):
+        """
+        Makes post request to API url wit custom data
+
+        :param data: Petition data in dictionary format
+        """
+
+        return post(self.__api_url, data).text
+
+    def __list(self) -> list:
+        """
+        Returns an array with all avaliable machines
+        """
+
+        self.__catchAPIKey()
+
+        data = {
+                "k": self.__database.get("api_key"),
+                "c": "total"
+                }
+
+        return [data.split() for data in self.__api_post_data(data).splitlines()]
+
+
+    def list(self, level: str = "all", pending: bool = False, finished: bool = False):
+        """
+        Lists all avaliable machines based on level or status
 
         Level types:
             - All    : Lists all avaliable machines (Default)
@@ -233,17 +297,24 @@ class HackMyCLI:
             - Medium : Lists all medium level machines
             - Hard   : Lists all hard level machines
 
-        :param level: Level type to list
+        Pending and finished parameters can be complemented. 
+
+        :param level: Level to be based when creating the list
+        :param pending: Shows your pending machines
+        :param finished: Shows your finished machines
         """
 
         level_types = ["all", "easy", "medium", "hard"]
-        level = level if level.lower() in level_types else "all"
+        level = "skip" if pending or finished else level.lower() if level.lower() in level_types else "all"
 
-        machines = []
+        machines_table = ColorTable(["Creation Date", "Creation time", "Machine Name", "Level", "Url"], theme=Themes.OCEAN)
 
-        # List all machines
+        for machine in self.__list():
+            # Change machine[3] in pending and finished with correct value
+            if level in [machine[3].lower(), "all"] or (pending and machine[3].lower() == "pending") or (finished and machine[3].lower() == "finished"):
+                machines_table.add_row(machine)
 
-        return machines
+        return machines_table.get_string(fields=["Creation Date", "Machine Name", "Level"])
 
     def checkflag(self, flag: str, machine: str, no_verify: bool = False):
         """
@@ -261,8 +332,7 @@ class HackMyCLI:
 
         inserted: bool = False
 
-        if not no_verify and machine not in self.list():
-            raise Exception("Invalid machine. It do not exist on hackmyvm database")
+        if not no_verify and self.__catchInvalidMachine(machine): pass
 
         # Insert flag into machine
 
@@ -280,9 +350,7 @@ class HackMyCLI:
 
         downloaded: bool = False
 
-        if not no_verify:
-            if machine not in self.list():
-                raise Exception("Invalid machine. It do not exist on hackmyvm database")
+        if not no_verify and self.__catchInvalidMachine(machine): pass
 
         # Download the machine
 

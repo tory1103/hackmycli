@@ -1,6 +1,6 @@
 #!/bin/python3
 
-import fire
+from fire import Fire
 from requests import post
 from exceptions import *
 from prettytable.colortable import ColorTable, Themes
@@ -25,8 +25,8 @@ class HackMyCLI:
          python3 main.py config key <api_key>
 
     Author : Adrian Toral
-    Date   : 08-04-2022
-    Latest : v0.1-beta
+    Date   : 09-04-2022
+    Latest : v01-beta
     """
 
     def __init__(self):
@@ -113,11 +113,11 @@ class HackMyCLI:
             :param key: Keyword to be removed
             """
 
-            if self.__database.exists(key):
-                self.__database.pop(key)
-                self.__database.save.as_json()
+            if not self.__database.exists(key): raise KeywordNotFound("Keyword do not exist on config database. Check if it is spelled correctly")
 
-            else: raise Exception("Invalid keyword. It do not exists on configuration file")
+            self.__database.pop(key)
+            self.__database.save.as_json()
+
 
     class __submit:
         def __init__(self, database: LoadPickleDB):
@@ -182,7 +182,7 @@ class HackMyCLI:
             # https://hackmyvm.eu/submit/registerchallenge.php
             # https://hackmyvm.eu/submit/registersubmit.php
 
-            if not self.__existCategory(category): raise Exception("Invalid challenge category. It do not exist on categories list")
+            if not self.__existCategory(category): raise CategoryNotFound("Category do not exist on hackmyvm database. Check if it is spelled correctly")
 
             data = {
                     "chatype": category,
@@ -216,7 +216,7 @@ class HackMyCLI:
             :param writeup: Summarized solution of the machine. Only avaliable for staff
             """
 
-            if not self.__existLevel(level): raise Exception("Invalid machine level. It do not exist on levels list")
+            if not self.__existLevel(level): raise LevelNotFound("Level do not exist on hackmyvm database. Check if it is spelled correctly")
 
             data = {
                     "vmname": name,
@@ -249,7 +249,7 @@ class HackMyCLI:
         Raises an exception if the API key is not set
         """
 
-        if not self.__database.exists("api_key"): raise APIKeyConfig("Previous configuration needed. API Key must be set.\nTry: python3 main.py config fresh <username> <password> <api_key>\n     python3 main.py config key <api_key>")
+        if not self.__database.exists("api_key"): raise APIKeyNotFound("Previous configuration needed. API Key must be set.\nTry: python3 main.py config fresh <username> <password> <api_key>\n     python3 main.py config key <api_key>")
 
     def __catchInvalidMachine(self, machine: str):
         """
@@ -261,7 +261,7 @@ class HackMyCLI:
         for data in self.__list():
             if machine in data: catched = False
 
-        if catched: raise InvalidMachine("Machine do not exist on hackmyvm database. Check if it is spelled correctly")
+        if catched: raise MachineNotFound("Machine do not exist on hackmyvm database. Check if it is spelled correctly")
 
     def __api_post_data(self, data: dict):
         """
@@ -287,7 +287,7 @@ class HackMyCLI:
         return [data.split() for data in self.__api_post_data(data).splitlines()]
 
 
-    def list(self, level: str = "all", pending: bool = False, finished: bool = False):
+    def list(self, level: str = "all", pending: bool = False, finished: bool = False, limit: int = 0, descendant: bool = False):
         """
         Lists all avaliable machines based on level or status
 
@@ -297,24 +297,27 @@ class HackMyCLI:
             - Medium : Lists all medium level machines
             - Hard   : Lists all hard level machines
 
-        Pending and finished parameters can be complemented. 
+        Pending and finished parameters can be complemented (Default)
 
         :param level: Level to be based when creating the list
         :param pending: Shows your pending machines
         :param finished: Shows your finished machines
+        :param limit: Shows and slice of machines list from 0 to limit. Default: All machines
+        :param descendant: Orders the returned table in bottom-up style (NEW-OLDER). Default: Ascendant (OLDER-NEW)
         """
 
         level_types = ["all", "easy", "medium", "hard"]
         level = "skip" if pending or finished else level.lower() if level.lower() in level_types else "all"
 
         machines_table = ColorTable(["Creation Date", "Creation time", "Machine Name", "Level", "Url"], theme=Themes.OCEAN)
+        machines = self.__list() if not descendant else reversed(self.__list())
 
-        for machine in self.__list():
+        for machine in machines:
             # Change machine[3] in pending and finished with correct value
             if level in [machine[3].lower(), "all"] or (pending and machine[3].lower() == "pending") or (finished and machine[3].lower() == "finished"):
                 machines_table.add_row(machine)
 
-        return machines_table.get_string(fields=["Creation Date", "Machine Name", "Level"])
+        return machines_table.get_string(fields=["Creation Date", "Machine Name", "Level"], end=machines_table.rowcount if not limit else limit)
 
     def checkflag(self, flag: str, machine: str, no_verify: bool = False):
         """
@@ -340,7 +343,7 @@ class HackMyCLI:
 
     def download(self, machine: str, no_verify: bool = False):
         """
-        Downloads the machine from hackmyvm database
+        Downloads the machine from hackmyvm database or url
 
         If the 'no_verify' parameter is True, it would not check if the machine is valid or exists on database (not recommended)
 
@@ -368,4 +371,4 @@ class HackMyCLI:
         return leaderboard[:limit]
 
 
-if __name__ == "__main__": fire.Fire(HackMyCLI)
+if __name__ == "__main__": Fire(HackMyCLI)

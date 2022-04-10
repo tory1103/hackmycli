@@ -3,3 +3,4 @@ oh-my-pickledb==0.4.2
 pint==0.19.1
 requests==2.27.1
 prettytable==3.2.0
+gdown==4.4.0

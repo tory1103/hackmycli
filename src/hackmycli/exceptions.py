@@ -35,3 +35,9 @@ class LevelNotFound(Exception):
 
     pass
 
+class DownloadParamsInconsistency(Exception):
+    """
+    Raises an exception if the download parameters are bad configured
+    """
+
+    pass

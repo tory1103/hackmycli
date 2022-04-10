@@ -1,7 +1,8 @@
 #!/bin/python3
 
 from fire import Fire
-from requests import post
+from requests import post, get
+from gdown import download
 from exceptions import *
 from prettytable.colortable import ColorTable, Themes
 from my_pickledb import LoadPickleDB
@@ -25,8 +26,8 @@ class HackMyCLI:
          python3 main.py config key <api_key>
 
     Author : Adrian Toral
-    Date   : 09-04-2022
-    Latest : v01-beta
+    Date   : 11-04-2022
+    Latest : v02-beta
     """
 
     def __init__(self):
@@ -42,7 +43,7 @@ class HackMyCLI:
         self.config = self.__config(self.__database)
         self.submit = self.__submit(self.__database)
 
-    class __config:
+    class __config: # Status: Working
         def __init__(self, database: LoadPickleDB):
             """
             Basic configuration manager
@@ -52,7 +53,7 @@ class HackMyCLI:
 
             self.__database = database
 
-        def fresh(self, username: str, password: str, key: str, clean: bool = False):
+        def fresh(self, username: str, password: str, key: str, clean: bool = False): # Status: Working
             """
             Updates configuration username, password and key
 
@@ -68,7 +69,7 @@ class HackMyCLI:
             self.password(password)
             self.key(key)
 
-        def username(self, username: str):
+        def username(self, username: str): # Status: Working
             """
             Updates configuration username
 
@@ -77,7 +78,7 @@ class HackMyCLI:
 
             self.add("username", username)
 
-        def password(self, password: str):
+        def password(self, password: str): # Status: Working
             """
             Updates configuration password
 
@@ -86,7 +87,7 @@ class HackMyCLI:
 
             self.add("password", password)
 
-        def key(self, key: str):
+        def key(self, key: str): # Status: Working
             """
             Updates configuration API key
 
@@ -95,7 +96,7 @@ class HackMyCLI:
 
             self.add("api_key", key)
 
-        def add(self, key: str, value):
+        def add(self, key: str, value): # Status: Working
             """
             Inserts custom key and value into configuration file
 
@@ -106,7 +107,7 @@ class HackMyCLI:
             self.__database.set(key, value)
             self.__database.save.as_json()
 
-        def remove(self, key):
+        def remove(self, key): # Status: Working
             """
             Removes custom key from configuration file
 
@@ -119,7 +120,7 @@ class HackMyCLI:
             self.__database.save.as_json()
 
 
-    class __submit:
+    class __submit: # Status: Working
         def __init__(self, database: LoadPickleDB):
             """
             Main submit command manager
@@ -127,7 +128,7 @@ class HackMyCLI:
 
             self.__database = database
 
-        def __existLevel(self, level: str):
+        def __existLevel(self, level: str): # Status: Working
             """
             Checks if a level is valid or not
             """
@@ -140,7 +141,7 @@ class HackMyCLI:
 
             return True if level in levels else False
 
-        def __existCategory(self, category: str):
+        def __existCategory(self, category: str): # Status: Working
             """
             Checks if a category is valid or not
             """
@@ -158,7 +159,7 @@ class HackMyCLI:
 
             return True if category in categories else False
 
-        def challenge(self, category: str, flag: str, description: str, solution: str, url: str = None):
+        def challenge(self, category: str, flag: str, description: str, solution: str, url: str = None): # Status: Not Working
             """
             Submits a new challenge to hackmyvm
 
@@ -198,7 +199,7 @@ class HackMyCLI:
 
             return submited
 
-        def machine(self, name: str, url: str, user_flag: str, root_flag: str, level: str, notes: str, writeup: str):
+        def machine(self, name: str, url: str, user_flag: str, root_flag: str, level: str, notes: str, writeup: str): # Status: Not Working
             """
             Submits a new machine to hackmyvm
 
@@ -234,7 +235,7 @@ class HackMyCLI:
 
             return submited
 
-        def status(self, name: str, challenge: bool = False):
+        def status(self, name: str, challenge: bool = False): # Status: Not Working
             """
             Returns a machine or user challenge status
 
@@ -244,26 +245,28 @@ class HackMyCLI:
 
             pass
 
-    def __catchAPIKey(self): 
+    def __catchAPIKey(self): # Status: Working 
         """
         Raises an exception if the API key is not set
         """
 
         if not self.__database.exists("api_key"): raise APIKeyNotFound("Previous configuration needed. API Key must be set.\nTry: python3 main.py config fresh <username> <password> <api_key>\n     python3 main.py config key <api_key>")
 
-    def __catchInvalidMachine(self, machine: str):
+    def __catchInvalidMachine(self, machine: str): # Status: Working
         """
         Raises an exception if the machine is not on database
         """
 
         catched: bool = True
 
-        for data in self.__list():
+        for data in self.__list(True):
             if machine in data: catched = False
 
-        if catched: raise MachineNotFound("Machine do not exist on hackmyvm database. Check if it is spelled correctly")
+        if catched: raise MachineNotFound("Machine do not exist on hackmyvm database. Check if it is spelled correctly.\nIf you entered an URL try to add --no-verify parameter to command")
 
-    def __api_post_data(self, data: dict):
+        return not catched
+
+    def __api_post_data(self, data: dict): # Status: Working
         """
         Makes post request to API url wit custom data
 
@@ -272,7 +275,7 @@ class HackMyCLI:
 
         return post(self.__api_url, data).text
 
-    def __list(self) -> list:
+    def __list(self, update: bool = False) -> list: # Status: Working
         """
         Returns an array with all avaliable machines
         """
@@ -284,10 +287,15 @@ class HackMyCLI:
                 "c": "total"
                 }
 
-        return [data.split() for data in self.__api_post_data(data).splitlines()]
+        if self.__database.exists("machines") and not update: machines = self.__database.get("machines")
+        else: machines = [[value.lower() for value in data.split()] for data in self.__api_post_data(data).splitlines()]
 
+        self.__database.set("machines", machines)
+        self.__database.save.as_json()
 
-    def list(self, level: str = "all", pending: bool = False, finished: bool = False, limit: int = 0, descendant: bool = False):
+        return machines
+
+    def list(self, level: str = "all", pending: bool = False, finished: bool = False, limit: int = 0, descendant: bool = False, update:bool = False): # Status: Working
         """
         Lists all avaliable machines based on level or status
 
@@ -299,27 +307,36 @@ class HackMyCLI:
 
         Pending and finished parameters can be complemented (Default)
 
+        If update parameter is not set, it will use local machines list if exists else it will force an automatic fetch
+        If you want to remove local machines, try: python3 main.py config remove machines
+
         :param level: Level to be based when creating the list
         :param pending: Shows your pending machines
         :param finished: Shows your finished machines
         :param limit: Shows and slice of machines list from 0 to limit. Default: All machines
         :param descendant: Orders the returned table in bottom-up style (NEW-OLDER). Default: Ascendant (OLDER-NEW)
+        :param update: Fetches all avaliable machines from database and saves it locally
         """
 
-        level_types = ["all", "easy", "medium", "hard"]
+        level_types: list = ["all", "easy", "medium", "hard"]
         level = "skip" if pending or finished else level.lower() if level.lower() in level_types else "all"
 
         machines_table = ColorTable(["Creation Date", "Creation time", "Machine Name", "Level", "Url"], theme=Themes.OCEAN)
-        machines = self.__list() if not descendant else reversed(self.__list())
 
-        for machine in machines:
+        for machine in self.__list(update) if not descendant else reversed(self.__list(update)):
+            machine_level = machine[3]
             # Change machine[3] in pending and finished with correct value
-            if level in [machine[3].lower(), "all"] or (pending and machine[3].lower() == "pending") or (finished and machine[3].lower() == "finished"):
+            if level in [machine_level, "all"] or (pending and machine[3] == "pending") or (finished and machine[3] == "finished"):
+                machine[3] = "{0}{1}{2}".format(
+                        "\033[92m" if machine_level == "easy" else "\033[93m" if machine_level == "medium" else "\033[91m" if machine_level == "hard" else "\033[90m",
+                        machine[3],
+                        "\033[0m"
+                        )
                 machines_table.add_row(machine)
 
         return machines_table.get_string(fields=["Creation Date", "Machine Name", "Level"], end=machines_table.rowcount if not limit else limit)
 
-    def checkflag(self, flag: str, machine: str, no_verify: bool = False):
+    def checkflag(self, flag: str, machine: str, no_verify: bool = False): # Status: Not Working
         """
         Inserts the flag into the machine if valid
 
@@ -341,25 +358,26 @@ class HackMyCLI:
 
         return inserted
 
-    def download(self, machine: str, no_verify: bool = False):
+    def download(self, machine: str, no_verify: bool = False): # Status: Working
         """
         Downloads the machine from hackmyvm database or url
 
         If the 'no_verify' parameter is True, it would not check if the machine is valid or exists on database (not recommended)
+        It might be used when you entered an url as parameter
 
         :param machine: Destination machine to download
         :param no_verify: Skips machine existence check
         """
 
-        downloaded: bool = False
+        if not no_verify and self.__catchInvalidMachine(machine.lower()):
+            url = f"https://downloads.hackmyvm.eu/{machine}.zip"
+            if machine.startswith("http"): raise DownloadParamsInconsistency("You entered an URL try to add --no-verify parameter to command")
 
-        if not no_verify and self.__catchInvalidMachine(machine): pass
+        elif no_verify: url = machine
 
-        # Download the machine
+        download(get(url, allow_redirects=True).url, url.split("/")[-1], quiet=False, fuzzy=True)
 
-        return downloaded
-
-    def leaderboard(self, limit: int = 5):
+    def leaderboard(self, limit: int = 5): # Status: Not Working
         """
         Returns the firts users of leaderboard based on the limit
 

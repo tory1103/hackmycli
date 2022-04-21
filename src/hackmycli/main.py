@@ -3,6 +3,7 @@
 from fire import Fire
 from requests import post, get
 from gdown import download
+from json import loads
 from exceptions import *
 from prettytable.colortable import ColorTable, Themes
 from my_pickledb import LoadPickleDB
@@ -288,7 +289,7 @@ class HackMyCLI:
                 }
 
         if self.__database.exists("machines") and not update: machines = self.__database.get("machines")
-        else: machines = [[value.lower() for value in data.split()] for data in self.__api_post_data(data).splitlines()]
+        else: machines = [{key:value if value else "" for key, value in dictionary.items()} for dictionary in loads(self.__api_post_data(data))]
 
         self.__database.set("machines", machines)
         self.__database.save.as_json()
@@ -321,18 +322,18 @@ class HackMyCLI:
         level_types: list = ["all", "easy", "medium", "hard"]
         level = "skip" if pending or finished else level.lower() if level.lower() in level_types else "all"
 
-        machines_table = ColorTable(["Creation Date", "Creation time", "Machine Name", "Level", "Url"], theme=Themes.OCEAN)
+        machines_table = ColorTable(["Creation Date", "Creation time", "Machine Name", "Level", "Url", "Torrent"], theme=Themes.OCEAN)
 
         for machine in self.__list(update) if not descendant else reversed(self.__list(update)):
-            machine_level = machine[3]
+            machine_level = machine["level"].lower()
             # Change machine[3] in pending and finished with correct value
-            if level in [machine_level, "all"] or (pending and machine[3] == "pending") or (finished and machine[3] == "finished"):
-                machine[3] = "{0}{1}{2}".format(
+            if level in [machine_level, "all"] or (pending and machine["level"] == "pending") or (finished and machine["level"] == "finished"):
+                machine["level"] = "{0}{1}{2}".format(
                         "\033[92m" if machine_level == "easy" else "\033[93m" if machine_level == "medium" else "\033[91m" if machine_level == "hard" else "\033[90m",
-                        machine[3],
+                        machine["level"],
                         "\033[0m"
                         )
-                machines_table.add_row(machine)
+                machines_table.add_row([machine["created"].split(" ")[0], machine["created"].split(" ")[1], machine["vmname"], machine["level"], machine["url"], machine["torrent"]])
 
         return machines_table.get_string(fields=["Creation Date", "Machine Name", "Level"], end=machines_table.rowcount if not limit else limit)
 
@@ -373,7 +374,7 @@ class HackMyCLI:
             url = f"https://downloads.hackmyvm.eu/{machine}.zip"
             if machine.startswith("http"): raise DownloadParamsInconsistency("You entered an URL try to add --no-verify parameter to command")
 
-        elif no_verify: url = machine
+            elif no_verify: url = machine
 
         download(get(url, allow_redirects=True).url, url.split("/")[-1], quiet=False, fuzzy=True)
 

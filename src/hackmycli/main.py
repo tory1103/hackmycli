@@ -4,7 +4,7 @@ from fire import Fire
 from requests import post, get
 from gdown import download
 from json import loads
-from exceptions import *
+from .exceptions import *
 from prettytable.colortable import ColorTable, Themes
 from my_pickledb import LoadPickleDB
 
@@ -16,7 +16,7 @@ class HackMyCLI:
     It is a tool for managing HackMyVM platform basics.
     It includes some of these utilities:
         - List all avaliable machine
-        - Download machines 
+        - Download machines
         - Insert flags to machines
         - Local configuration basics
         - Submit challenges and machines
@@ -246,7 +246,7 @@ class HackMyCLI:
 
             pass
 
-    def __catchAPIKey(self): # Status: Working 
+    def __catchAPIKey(self): # Status: Working
         """
         Raises an exception if the API key is not set
         """
@@ -389,5 +389,6 @@ class HackMyCLI:
 
         return leaderboard[:limit]
 
+def main(): Fire(HackMyCLI)
 
-if __name__ == "__main__": Fire(HackMyCLI)
+if __name__ == "__main__": main()

@@ -4,7 +4,7 @@ from fire import Fire
 from requests import post, get
 from gdown import download
 from json import loads
-from .exceptions import *
+from exceptions import *
 from prettytable.colortable import ColorTable, Themes
 from my_pickledb import LoadPickleDB
 

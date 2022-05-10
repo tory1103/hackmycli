@@ -1,6 +1,6 @@
 fire==0.4.0
 oh-my-pickledb==0.4.2
-pint==0.19.1
+pint==0.18
 requests==2.27.1
 prettytable==3.2.0
-gdown==4.4.0
+gdown==3.3.0

@@ -28,9 +28,31 @@ $ cd src/hackmycli
 $ python3 main.py <args>
 ```
 
+### Using python3 setup
+```bash
+# Clone repository and change directory to it
+$ git clone https://github.com/tory1103/hackmycli.git
+$ cd hackmycli
+
+# Install using setup.py
+$ python3 setup.py install
+
+# HackMyCLI is ready to use. Type: hack --help
+$ hack --help
+```
 ---
 
 ## 🎈 Documentation
+
+### Configuring credentials with config
+```bash
+# Fresh configuration
+# User and password would not be needed in future versions
+$ hack config fresh <username> <password> <api_key>
+
+# Skipping username and password
+$ hack config key <api_key>
+```
 
 ### Basic usage
 ```bash
